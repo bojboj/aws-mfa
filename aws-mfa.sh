@@ -3,7 +3,7 @@
 PROGRAM_NAME=$(basename "$0")
 
 usage () {
-  echo "$PROGRAM_NAME: usage: $PROGRAM_NAME [-p profile]"
+  echo "$PROGRAM_NAME: usage: $PROGRAM_NAME [-p profile | --help]"
   return
 }
 
@@ -19,7 +19,7 @@ while [[ -n "$1" ]]; do
       fi
 
       ;;
-    *)
+    --help | *)
       usage >&2
       exit 1
 
@@ -32,6 +32,7 @@ if [ -n "$(aws configure get aws_access_key_id --profile="$profile" 2>/dev/null)
     echo "Using $profile profile."
 else
     echo "$profile profile is not configured."
+    exit 1
 fi
 
 echo -n "Enter your one time token: "
