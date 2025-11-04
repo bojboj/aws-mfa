@@ -7,7 +7,7 @@ usage () {
   return
 }
 
-profile=default
+profile=default-long-term
 
 while [[ -n "$1" ]]; do
   case "$1" in
@@ -38,7 +38,7 @@ fi
 echo -n "Enter your one time token: "
 read token
 
-mfa_serial=$(aws iam list-mfa-devices --query "MFADevices[0].SerialNumber" --output text)
+mfa_serial=$(aws iam list-mfa-devices --profile="$profile" --query "MFADevices[0].SerialNumber" --output text)
 echo "Using device: $mfa_serial, with token: $token."
 
 if [[ -z "$mfa_serial" ]]; then
@@ -46,16 +46,21 @@ if [[ -z "$mfa_serial" ]]; then
     exit 1
 fi
 
-credentials=$(aws sts get-session-token --serial-number "$mfa_serial" --token-code "$token")
+credentials=$(aws sts get-session-token --profile="$profile" --serial-number "$mfa_serial" --token-code "$token")
 
 if [ $? -ne 0 ]; then
     echo "Error: Failed to get session token."
     exit 1
 fi
 
-export AWS_ACCESS_KEY_ID=$(echo "$credentials" | grep -o '"AccessKeyId": "[^"]*"' | cut -d'"' -f4)
-export AWS_SECRET_ACCESS_KEY=$(echo "$credentials" | grep -o '"SecretAccessKey": "[^"]*"' | cut -d'"' -f4)
-export AWS_SESSION_TOKEN=$(echo "$credentials" | grep -o '"SessionToken": "[^"]*"' | cut -d'"' -f4)
+file=~/.aws/credentials
+sed -i '/^\[default\]/,+4d' "$file" # Delete [default] and 4 lines below.
+echo "[default]" >> "$file"
+echo "aws_access_key_id=$(echo "$credentials" | grep -o '"AccessKeyId": "[^"]*"' | cut -d'"' -f4)" >> "$file"
+echo "aws_secret_access_key=$(echo "$credentials" | grep -o '"SecretAccessKey": "[^"]*"' | cut -d'"' -f4)" >> "$file"
+echo "aws_session_token=$(echo "$credentials" | grep -o '"SessionToken": "[^"]*"' | cut -d'"' -f4)" >> "$file"
 
 expiration=$(echo "$credentials" | grep -o '"Expiration": "[^"]*"' | cut -d'"' -f4)
-echo "Temporary credentials set. Expires at: $expiration."
+echo "expiration=$expiration" >> "$file"
+
+echo "Credentials set. Expires at: $expiration."
