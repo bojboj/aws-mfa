@@ -41,6 +41,11 @@ read token
 mfa_serial=$(aws iam list-mfa-devices --query "MFADevices[0].SerialNumber" --output text)
 echo "Using device: $mfa_serial, with token: $token."
 
+if [[ -z "$mfa_serial" ]]; then
+    echo "Error: Failed to get MFA device."
+    exit 1
+fi
+
 credentials=$(aws sts get-session-token --serial-number "$mfa_serial" --token-code "$token")
 
 if [ $? -ne 0 ]; then
@@ -48,9 +53,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-export AWS_ACCESS_KEY_ID=$(echo "$credentials" | jq -r ".Credentials.AccessKeyId")
-export AWS_SECRET_ACCESS_KEY=$(echo "$credentials" | jq -r ".Credentials.SecretAccessKey")
-export AWS_SESSION_TOKEN=$(echo "$credentials" | jq -r ".Credentials.SessionToken")
+export AWS_ACCESS_KEY_ID=$(echo "$credentials" | grep -o '"AccessKeyId": "[^"]*"' | cut -d'"' -f4)
+export AWS_SECRET_ACCESS_KEY=$(echo "$credentials" | grep -o '"SecretAccessKey": "[^"]*"' | cut -d'"' -f4)
+export AWS_SESSION_TOKEN=$(echo "$credentials" | grep -o '"SessionToken": "[^"]*"' | cut -d'"' -f4)
 
-expiration=$(echo "$credentials" | jq -r ".Credentials.Expiration")
+expiration=$(echo "$credentials" | grep -o '"Expiration": "[^"]*"' | cut -d'"' -f4)
 echo "Temporary credentials set. Expires at: $expiration."
